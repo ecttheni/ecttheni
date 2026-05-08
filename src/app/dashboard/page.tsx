@@ -688,7 +688,7 @@ export default function MemberDashboard() {
                      <p className="text-muted-foreground">No projects added yet.</p>
                    </div>
                  ) : (
-                   details?.projects?.slice(0, 3).map((project: any) => (
+                   details?.projects?.slice(0, 4).map((project: any) => (
                      <div key={project.id} className="bg-white rounded-3xl border border-border p-5 shadow-sm group relative">
                        <button
                          onClick={() => handleDeleteProject(project.id)}
