@@ -9,6 +9,11 @@
     "lint": "eslint",
     "seed": "prisma db seed"
   },
+  "overrides": {
+    "next-auth": {
+      "uuid": "11.1.0"
+    }
+  },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
   },
