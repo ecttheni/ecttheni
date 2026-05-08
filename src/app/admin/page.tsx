@@ -1,30 +1,45 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Users, UserPlus, ShieldCheck, Calendar, ArrowUpRight, Loader2 } from "lucide-react";
+import { Users, UserPlus, ShieldCheck, Calendar, ArrowUpRight, Loader2, Mail, UserCheck, Ticket } from "lucide-react";
 import { motion } from "framer-motion";
-import { getDashboardStats } from "@/lib/actions/dashboard";
+import { getDashboardStats, getRecentActivity } from "@/lib/actions/dashboard";
 import Link from "next/link";
+import { formatDistanceToNow } from "date-fns";
+
+const activityIcons: Record<string, { icon: any; bg: string }> = {
+  member: { icon: UserCheck, bg: "bg-blue-100 text-blue-600" },
+  inquiry: { icon: Mail, bg: "bg-purple-100 text-purple-600" },
+  registration: { icon: UserPlus, bg: "bg-amber-100 text-amber-600" },
+  booking: { icon: Ticket, bg: "bg-emerald-100 text-emerald-600" },
+}
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<any[]>([]);
+  const [activities, setActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchStats() {
-      const result = await getDashboardStats();
-      if (result.success && result.data) {
-        const s = result.data;
+    async function fetchData() {
+      const [statsRes, activityRes] = await Promise.all([
+        getDashboardStats(),
+        getRecentActivity(),
+      ]);
+      if (statsRes.success && statsRes.data) {
+        const s = statsRes.data;
         setStats([
           { label: "Total Members", value: s.totalMembers.toString(), icon: Users, color: "bg-blue-500", href: "/admin/members" },
           { label: "Active Bearers", value: s.totalBearers.toString(), icon: ShieldCheck, color: "bg-emerald-500", href: "/admin/bearers" },
           { label: "Upcoming Events", value: s.upcomingEvents.toString(), icon: Calendar, color: "bg-amber-500", href: "/admin/events" },
-          { label: "New Applications", value: s.newApplications.toString(), icon: UserPlus, color: "bg-purple-500", href: "/admin/applications" },
+          { label: "New Applications", value: s.newApplications.toString(), icon: UserPlus, color: "bg-purple-500", href: "/admin/inquiries" },
         ]);
+      }
+      if (activityRes.success && activityRes.data) {
+        setActivities(activityRes.data);
       }
       setLoading(false);
     }
-    fetchStats();
+    fetchData();
   }, []);
 
   return (
@@ -64,22 +79,31 @@ export default function AdminDashboard() {
         <div className="bg-white p-8 rounded-[2rem] border border-border shadow-sm">
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-xl font-bold text-brand-dark">Recent Activity</h2>
-            <button className="text-sm font-bold text-brand-blue hover:underline flex items-center space-x-1">
+            <Link href="/admin/inquiries" className="text-sm font-bold text-brand-blue hover:underline flex items-center space-x-1">
               <span>View All</span>
               <ArrowUpRight size={14} />
-            </button>
+            </Link>
           </div>
-          <div className="space-y-6">
-            <p className="text-sm text-muted-foreground italic">Integration with activity logs coming soon...</p>
-            {[1, 2].map((i) => (
-              <div key={i} className="flex items-center space-x-4 opacity-50">
-                <div className="w-10 h-10 bg-gray-100 rounded-full" />
-                <div className="flex-1">
-                  <div className="text-sm font-bold text-brand-dark">Member activity placeholder</div>
-                  <div className="text-xs text-muted-foreground">---</div>
-                </div>
-              </div>
-            ))}
+          <div className="space-y-4">
+            {activities.length === 0 ? (
+              <p className="text-sm text-muted-foreground italic">No recent activity.</p>
+            ) : (
+              activities.map((act) => {
+                const iconDef = activityIcons[act.type] || activityIcons.member
+                const Icon = iconDef.icon
+                return (
+                  <div key={act.id} className="flex items-start space-x-4">
+                    <div className={`p-2.5 rounded-xl ${iconDef.bg}`}>
+                      <Icon size={16} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-brand-dark truncate">{act.description}</p>
+                      <p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(act.timestamp), { addSuffix: true })}</p>
+                    </div>
+                  </div>
+                )
+              })
+            )}
           </div>
         </div>
 
