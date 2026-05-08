@@ -1,51 +1,43 @@
 import { v2 as cloudinary } from "cloudinary"
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-})
+function getCloudinary() {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+  })
+  return cloudinary
+}
 
 export async function uploadToCloudinary(
   buffer: Buffer,
   folder: string
 ): Promise<string | null> {
   try {
-    return new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        { folder: `ecttheni/${folder}`, resource_type: "image" },
-        (error, result) => {
-          if (error || !result) {
-            console.error("Cloudinary upload error:", error)
-            resolve(null)
-          } else {
-            resolve(result.secure_url)
-          }
-        }
-      )
-      uploadStream.end(buffer)
+    const cld = getCloudinary()
+    const base64 = buffer.toString("base64")
+    const dataUri = `data:image/jpeg;base64,${base64}`
+
+    const result = await cld.uploader.upload(dataUri, {
+      folder: `ecttheni/${folder}`,
     })
+
+    return result.secure_url
   } catch (error) {
-    console.error("Cloudinary upload error:", error)
+    console.error("Cloudinary upload error:", error instanceof Error ? error.message : error)
     return null
   }
 }
 
 export async function deleteFromCloudinary(url: string): Promise<boolean> {
   try {
+    const cld = getCloudinary()
     const segments = url.split("/")
-    const publicIdWithExt = segments[segments.length - 1]
-    const publicIdParts = publicIdWithExt.split(".")
-    const publicId = publicIdParts.slice(0, -1).join(".")
-
-    const folderMatch = url.match(/\/ecttheni\/([^/]+)\//)
-    if (!folderMatch) return false
-
-    const fullPublicId = `ecttheni/${folderMatch[1]}/${publicId}`
-    const result = await cloudinary.uploader.destroy(fullPublicId)
+    const fullId = segments.slice(segments.indexOf("ecttheni")).join("/").replace(/\.[^.]+$/, "")
+    const result = await cld.uploader.destroy(fullId)
     return result.result === "ok"
   } catch (error) {
-    console.error("Cloudinary delete error:", error)
+    console.error("Cloudinary delete error:", error instanceof Error ? error.message : error)
     return false
   }
 }

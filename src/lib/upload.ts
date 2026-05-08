@@ -5,7 +5,7 @@ const ALLOWED_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "gif"]
 const DEFAULT_MAX_SIZE = 5 * 1024 * 1024
 
 export async function uploadFile(file: any, folder: string, maxSize?: number): Promise<string | null> {
-  if (!file || !(file instanceof Blob) || file.size === 0) return null
+  if (!file || typeof file.arrayBuffer !== "function" || file.size === 0) return null
 
   const limit = maxSize ?? DEFAULT_MAX_SIZE
   if (file.size > limit) {
@@ -20,8 +20,8 @@ export async function uploadFile(file: any, folder: string, maxSize?: number): P
   }
 
   try {
-    const extension = ((file as any).name?.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "")
-    if (!ALLOWED_EXTENSIONS.includes(extension.toLowerCase())) {
+    const extension = (file.name?.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "")
+    if (!ALLOWED_EXTENSIONS.includes(extension)) {
       console.error(`Upload rejected: Invalid extension ".${extension}"`)
       return null
     }
@@ -32,7 +32,7 @@ export async function uploadFile(file: any, folder: string, maxSize?: number): P
     const url = await uploadToCloudinary(buffer, folder)
     return url
   } catch (error) {
-    console.error("Error uploading file:", error)
+    console.error("Error uploading file:", error instanceof Error ? error.message : error)
     return null
   }
 }
