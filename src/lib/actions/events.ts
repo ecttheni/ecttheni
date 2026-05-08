@@ -217,6 +217,34 @@ export async function checkBooking(eventId: string, userId: string) {
   }
 }
 
+export async function getMemberBookings(userId: string) {
+  try {
+    const bookings = await prisma.eventBooking.findMany({
+      where: { userId },
+      include: {
+        event: true,
+      },
+      orderBy: { event: { date: "desc" } },
+    })
+
+    return {
+      success: true,
+      data: bookings.map((b) => ({
+        id: b.event.id,
+        title: b.event.title,
+        date: b.event.date,
+        description: b.event.description,
+        imageUrl: b.event.imageUrl,
+        location: b.event.location,
+        bookedAt: b.createdAt,
+      })),
+    }
+  } catch (error) {
+    console.error("Error fetching member bookings:", error)
+    return { success: false, error: "Failed to fetch bookings" }
+  }
+}
+
 export async function getEventBookings(eventId: string) {
   try {
     const bookings = await prisma.eventBooking.findMany({

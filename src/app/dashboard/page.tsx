@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { getMemberById, updateMemberProfile, changePassword, addProject, deleteProject, addGalleryItem, deleteGalleryItem } from "@/lib/actions/members";
-import { getEvents, bookEvent, checkBooking } from "@/lib/actions/events";
+import { getEvents, bookEvent, checkBooking, getMemberBookings } from "@/lib/actions/events";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
 import { Plus, Trash2, X, Check } from "lucide-react";
@@ -30,6 +30,7 @@ export default function MemberDashboard() {
   const router = useRouter();
   const [member, setMember] = useState<any>(null);
   const [events, setEvents] = useState<any[]>([]);
+  const [myEvents, setMyEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("profile");
   const [isEditing, setIsEditing] = useState(false);
@@ -132,12 +133,13 @@ export default function MemberDashboard() {
      }
    };
 
-   const loadData = async () => {
-     setLoading(true);
-     const [memberRes, eventsRes] = await Promise.all([
-       getMemberById(session?.user?.id as string),
-       getEvents(),
-     ]);
+    const loadData = async () => {
+      setLoading(true);
+      const [memberRes, eventsRes, myBookingsRes] = await Promise.all([
+        getMemberById(session?.user?.id as string),
+        getEvents(),
+        getMemberBookings(session?.user?.id as string),
+      ]);
 
      if (memberRes.success && memberRes.data) {
        setMember(memberRes.data);
@@ -175,9 +177,14 @@ export default function MemberDashboard() {
            };
          })
        );
-       setEvents(eventsWithStatus.slice(0, 5));
-     }
-     setLoading(false);
+        setEvents(eventsWithStatus.slice(0, 5));
+      }
+
+      if (myBookingsRes.success && myBookingsRes.data) {
+        setMyEvents(myBookingsRes.data);
+      }
+
+      setLoading(false);
    };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
@@ -557,7 +564,7 @@ export default function MemberDashboard() {
                 {[
                   { label: "Projects", value: details?.projects?.length ?? 0, icon: FolderOpen, color: "bg-blue-50 text-blue-600" },
                   { label: "Gallery Photos", value: details?.gallery?.length ?? 0, icon: ImageIcon, color: "bg-purple-50 text-purple-600" },
-                  { label: "Events Attended", value: 0, icon: Calendar, color: "bg-amber-50 text-amber-600" },
+                  { label: "Events Attended", value: myEvents.length, icon: Calendar, color: "bg-amber-50 text-amber-600" },
                 ].map((s) => (
                   <div key={s.label} className="bg-white rounded-3xl border border-border p-6 flex items-center space-x-4 shadow-sm">
                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${s.color}`}>
@@ -573,50 +580,80 @@ export default function MemberDashboard() {
             </motion.div>
           )}
 
-           {/* Events Tab */}
-           {activeTab === "events" && (
-             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-               <h2 className="text-xl font-bold text-brand-dark">Upcoming Events</h2>
-               {events.length === 0 ? (
-                 <div className="bg-white rounded-3xl border border-dashed border-border p-16 text-center">
-                   <Calendar size={40} className="text-muted-foreground mx-auto mb-3" />
-                   <p className="text-muted-foreground">No upcoming events at the moment.</p>
-                 </div>
-               ) : (
-                 events.map((event) => (
-                   <div key={event.id} className="bg-white rounded-3xl border border-border p-6 flex items-center space-x-5 shadow-sm hover:shadow-md transition-all">
-                     <div className="w-14 h-14 bg-brand-blue/10 rounded-2xl flex flex-col items-center justify-center text-brand-blue shrink-0">
-                       <span className="text-xs font-bold uppercase">{format(new Date(event.date), "MMM")}</span>
-                       <span className="text-xl font-extrabold leading-none">{format(new Date(event.date), "dd")}</span>
-                     </div>
-                     <div className="flex-1">
-                       <h3 className="font-bold text-brand-dark">{event.title}</h3>
-                       {event.description && (
-                         <p className="text-muted-foreground text-sm mt-1 line-clamp-1">{event.description}</p>
-                       )}
-                     </div>
-                     <div className="flex items-center space-x-4 mt-3">
-                       <button
-                         onClick={() => handleToggleBooking(event.id)}
-                         className={`flex items-center space-x-2 px-3 py-1 rounded-lg text-sm font-medium transition-all ${
-                           event.isBooked
-                             ? "bg-red-50 text-red-600 hover:bg-red-100"
-                             : "bg-brand-blue/10 text-brand-blue hover:bg-brand-blue/20"
-                         }`}
-                       >
-                         {event.isBooking ? (
-                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                         ) : (
-                           <Check className="mr-2 h-4 w-4" />
-                         )}
-                         <span>{event.isBooked ? "Booked" : "Book Event"}</span>
-                       </button>
-                     </div>
-                   </div>
-                 ))
-               )}
-             </motion.div>
-           )}
+            {/* Events Tab */}
+            {activeTab === "events" && (
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+                <div className="space-y-4">
+                  <h2 className="text-xl font-bold text-brand-dark">Upcoming Events</h2>
+                  {events.length === 0 ? (
+                    <div className="bg-white rounded-3xl border border-dashed border-border p-16 text-center">
+                      <Calendar size={40} className="text-muted-foreground mx-auto mb-3" />
+                      <p className="text-muted-foreground">No upcoming events at the moment.</p>
+                    </div>
+                  ) : (
+                    events.map((event) => (
+                      <div key={event.id} className="bg-white rounded-3xl border border-border p-6 flex items-center space-x-5 shadow-sm hover:shadow-md transition-all">
+                        <div className="w-14 h-14 bg-brand-blue/10 rounded-2xl flex flex-col items-center justify-center text-brand-blue shrink-0">
+                          <span className="text-xs font-bold uppercase">{format(new Date(event.date), "MMM")}</span>
+                          <span className="text-xl font-extrabold leading-none">{format(new Date(event.date), "dd")}</span>
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-bold text-brand-dark">{event.title}</h3>
+                          {event.description && (
+                            <p className="text-muted-foreground text-sm mt-1 line-clamp-1">{event.description}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center space-x-4 mt-3">
+                          <button
+                            onClick={() => handleToggleBooking(event.id)}
+                            className={`flex items-center space-x-2 px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                              event.isBooked
+                                ? "bg-red-50 text-red-600 hover:bg-red-100"
+                                : "bg-brand-blue/10 text-brand-blue hover:bg-brand-blue/20"
+                            }`}
+                          >
+                            {event.isBooking ? (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                              <Check className="mr-2 h-4 w-4" />
+                            )}
+                            <span>{event.isBooked ? "Booked" : "Book Event"}</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <div className="border-t border-border pt-8 space-y-4">
+                  <h2 className="text-xl font-bold text-brand-dark">My Events</h2>
+                  {myEvents.length === 0 ? (
+                    <div className="bg-white rounded-3xl border border-dashed border-border p-12 text-center">
+                      <Calendar size={36} className="text-muted-foreground mx-auto mb-3" />
+                      <p className="text-muted-foreground">You haven't booked any events yet.</p>
+                    </div>
+                  ) : (
+                    myEvents.map((event: any) => (
+                      <div key={event.id} className="bg-white rounded-3xl border border-border p-6 flex items-center space-x-5 shadow-sm">
+                        <div className="w-14 h-14 bg-amber-100 rounded-2xl flex flex-col items-center justify-center text-amber-600 shrink-0">
+                          <span className="text-xs font-bold uppercase">{format(new Date(event.date), "MMM")}</span>
+                          <span className="text-xl font-extrabold leading-none">{format(new Date(event.date), "dd")}</span>
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-bold text-brand-dark">{event.title}</h3>
+                          {event.location && (
+                            <p className="text-muted-foreground text-sm mt-1">{event.location}</p>
+                          )}
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(event.date) > new Date() ? "Upcoming" : "Attended"}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </motion.div>
+            )}
 
           {activeTab === "projects" && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
