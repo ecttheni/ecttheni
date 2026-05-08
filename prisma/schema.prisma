@@ -1,0 +1,197 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+  @@map("user_role")
+}
+
+enum Status {
+  ACTIVE
+  INACTIVE
+  @@map("user_status")
+}
+
+enum InquiryStatus {
+  NEW
+  REVIEWED
+  APPROVED
+  REJECTED
+  @@map("inquiry_status")
+}
+
+model User {
+  id                        String   @id @default(cuid())
+  email                     String   @unique
+  password                  String
+  role                      Role     @default(MEMBER)
+  status                    Status   @default(ACTIVE)
+  renewalYear               Int?
+  entryYear                 Int?
+  appointedPosition         String?
+  isNewRegistrationAllowed  Boolean  @default(false)
+  slug                      String?  @unique
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  memberDetails             MemberDetail?
+  eventBookings             EventBooking[]
+  @@map("user")
+}
+
+model MemberDetail {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName           String
+  photoUrl           String?
+  company            String?
+  companyAddress     String?
+  mobile             String?
+  dateOfBirth        DateTime?
+  dateOfAnniversary  DateTime?
+  aboutUs            String?  @db.Text
+  designation        String?
+  location           String?
+  experience         String?
+  skills             String?  @db.Text
+  workingPlaces      String?  @db.Text
+  additionalBusiness String?  @db.Text
+  requirements       String?  @db.Text
+  instagramUrl       String?
+  facebookUrl        String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  projects           Project[]
+  gallery            MemberGallery[]
+  @@map("memberdetail")
+}
+
+model Project {
+  id             String       @id @default(cuid())
+  memberDetailId String
+  memberDetail   MemberDetail @relation(fields: [memberDetailId], references: [id], onDelete: Cascade)
+  name           String
+  description    String?      @db.Text
+  photoUrl       String?
+  createdAt      DateTime     @default(now())
+  @@map("project")
+}
+
+model MemberGallery {
+  id             String       @id @default(cuid())
+  memberDetailId String
+  memberDetail   MemberDetail @relation(fields: [memberDetailId], references: [id], onDelete: Cascade)
+  imageUrl       String
+  createdAt      DateTime     @default(now())
+  @@map("membergallery")
+}
+
+model Bearer {
+  id           String   @id @default(cuid())
+  name         String
+  designation  String
+  photoUrl     String?
+  briefInfo    String?  @db.Text
+  isStateLevel Boolean  @default(false)
+  order        Int      @default(0)
+  mobile       String?
+  company      String?
+  createdAt    DateTime @default(now())
+  @@map("bearer")
+}
+
+model Event {
+  id          String   @id @default(cuid())
+  title       String
+  location    String?  @db.Text
+  date        DateTime
+  description String?  @db.Text
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+   
+  bookings    EventBooking[]
+  gallery     HomeGallery[]
+  @@map("event")
+}
+
+model EventBooking {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, eventId])
+  @@map("eventbooking")
+}
+
+model Sponsor {
+  id          String   @id @default(cuid())
+  name        String
+  logoUrl     String?
+  description String?  @db.Text
+  websiteUrl  String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("sponsor")
+}
+
+model PageContent {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  content   String?  @db.Text
+  imageUrl  String?
+  updatedAt DateTime @updatedAt
+  @@map("pagecontent")
+}
+
+model HomeGallery {
+  id             String   @id @default(cuid())
+  imageUrl       String
+  caption        String?
+  googleAlbumUrl String?
+  eventId        String?
+  event          Event?   @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  createdAt      DateTime @default(now())
+  @@map("homegallery")
+}
+
+model ContactInquiry {
+  id        String        @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String?
+  message   String?       @db.Text
+  status    InquiryStatus @default(NEW)
+  notes     String?       @db.Text
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  @@map("contactinquiry")
+}
+
+model RegistrationInquiry {
+  id          String        @id @default(cuid())
+  fullName    String
+  email       String
+  company     String
+  designation String
+  phone       String?
+  experience  String?
+  status      InquiryStatus @default(NEW)
+  notes       String?       @db.Text
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  @@map("registrationinquiry")
+}
