@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Search, Plus, Filter, Edit, Trash, Shield, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Search, Plus, Filter, Edit, Trash, Shield, Loader2, AlertCircle, CheckCircle2, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { motion, AnimatePresence } from "framer-motion";
-import { getMembers, createMember, deleteMember } from "@/lib/actions/members";
+import { getMembers, createMember, deleteMember, resetMemberPassword } from "@/lib/actions/members";
 
 export default function AdminMembers() {
   const [showAddForm, setShowAddForm] = useState(false);
@@ -14,6 +14,8 @@ export default function AdminMembers() {
   const [searchTerm, setSearchTerm] = useState("");
   const [message, setMessage] = useState<{ type: "success" | "error", text: string } | null>(null);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
+  const [resetResult, setResetResult] = useState<{ memberName: string; password: string } | null>(null);
+  const [resettingId, setResettingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchMembers();
@@ -55,6 +57,23 @@ export default function AdminMembers() {
       fetchMembers();
     } else if ("error" in result) {
       alert(result.error);
+    }
+  }
+
+  async function handleResetPassword(member: any) {
+    if (!confirm(`Reset password for ${member.memberDetails?.fullName || member.email}?`)) return;
+
+    setResettingId(member.id);
+    const result = await resetMemberPassword(member.id);
+    setResettingId(null);
+
+    if (result.success) {
+      setResetResult({
+        memberName: member.memberDetails?.fullName || member.email,
+        password: (result as any).temporaryPassword || "",
+      });
+    } else {
+      alert((result as any).error || "Failed to reset password");
     }
   }
 
@@ -171,8 +190,13 @@ export default function AdminMembers() {
                   </td>
                   <td className="px-8 py-6 text-right">
                     <div className="flex items-center justify-end space-x-2">
-                      <button className="p-2 hover:bg-brand-blue/10 rounded-lg text-brand-blue transition-all" title="Edit Profile">
-                        <Edit size={18} />
+                      <button
+                        onClick={() => handleResetPassword(member)}
+                        disabled={resettingId === member.id}
+                        className="p-2 hover:bg-amber-500/10 rounded-lg text-amber-500 transition-all disabled:opacity-50"
+                        title="Reset Password"
+                      >
+                        {resettingId === member.id ? <Loader2 size={18} className="animate-spin" /> : <KeyRound size={18} />}
                       </button>
                       <button className="p-2 hover:bg-amber-500/10 rounded-lg text-amber-500 transition-all" title="Assign Role">
                         <Shield size={18} />
@@ -192,6 +216,49 @@ export default function AdminMembers() {
           </tbody>
         </table>
       </div>
+
+      {/* Reset Password Result Modal */}
+      <AnimatePresence>
+        {resetResult && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setResetResult(null)}
+              className="absolute inset-0 bg-brand-dark/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl overflow-hidden"
+            >
+              <div className="p-10 text-center">
+                <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <CheckCircle2 size={32} className="text-emerald-600" />
+                </div>
+                <h2 className="text-2xl font-extrabold text-brand-dark mb-2">Password Reset</h2>
+                <p className="text-muted-foreground text-sm mb-6">
+                  Password for <span className="font-semibold text-brand-dark">{resetResult.memberName}</span> has been reset.
+                </p>
+                <div className="bg-gray-50 rounded-2xl p-6 mb-6">
+                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">New Temporary Password</p>
+                  <p className="text-lg font-mono font-bold text-brand-dark bg-white border border-border rounded-xl px-4 py-3 select-all">
+                    {resetResult.password}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setResetResult(null)}
+                  className="w-full px-6 py-3 bg-brand-blue text-white rounded-xl font-bold hover:bg-brand-blue/90 transition-all"
+                >
+                  Done
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Add Member Modal (Overlay) */}
       <AnimatePresence>

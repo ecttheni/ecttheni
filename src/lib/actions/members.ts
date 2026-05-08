@@ -431,3 +431,26 @@ export async function deleteGalleryItem(id: string) {
     return { success: false, error: "Failed to delete photo" };
   }
 }
+
+export async function resetMemberPassword(memberId: string) {
+  const adminCheck = await requireAdmin();
+  if (adminCheck) return adminCheck;
+
+  try {
+    const user = await prisma.user.findUnique({ where: { id: memberId } });
+    if (!user) return { success: false, error: "Member not found" };
+
+    const newPassword = generateRandomPassword();
+    const hashedPassword = await hash(newPassword, 12);
+
+    await prisma.user.update({
+      where: { id: memberId },
+      data: { password: hashedPassword },
+    });
+
+    return { success: true, temporaryPassword: newPassword };
+  } catch (error) {
+    console.error("Error resetting password:", error);
+    return { success: false, error: "Failed to reset password" };
+  }
+}
