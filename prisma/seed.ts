@@ -1,8 +1,18 @@
 const { PrismaClient } = require('@prisma/client')
+const { PrismaMariaDb } = require('@prisma/adapter-mariadb')
 require('dotenv').config()
 const { hash } = require('bcryptjs')
 
-const prisma = new PrismaClient()
+const dbUrl = new URL(process.env.DATABASE_URL!)
+const adapter = new PrismaMariaDb({
+  host: dbUrl.hostname,
+  port: parseInt(dbUrl.port || '3306'),
+  user: dbUrl.username,
+  password: decodeURIComponent(dbUrl.password),
+  database: dbUrl.pathname.substring(1),
+})
+
+const prisma = new PrismaClient({ adapter })
 
 async function main() {
   const adminPassword = await hash('admin123', 12)
